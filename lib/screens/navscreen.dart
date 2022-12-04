@@ -2,75 +2,158 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:sharem/screens/homepage.dart';
+import 'package:sharem/bin/server.dart';
 import 'package:sharem/screens/recieved_files.dart';
-import 'package:sharem/screens/recieving_files.dart';
-import 'package:sharem/screens/settings.dart';
+import 'package:sharem/utils/show_snackbar.dart';
+import 'package:sharem/widgets/connection.dart';
+import 'package:sharem/widgets/local_ip_address.dart';
+import 'package:sharem/widgets/send_files.dart';
+import 'package:shelf/shelf.dart';
+import 'package:dio/dio.dart' as dio;
+import 'package:http/http.dart' as http;
 
 class NavScreen extends StatefulWidget {
-  const NavScreen({super.key});
+  final Directory directory;
+  const NavScreen({super.key, required this.directory});
 
   @override
   State<NavScreen> createState() => _NavScreenState();
 }
 
 class _NavScreenState extends State<NavScreen> {
-  final downloadsKey = GlobalKey<RecievingFilesState>();
+  VoidCallback? stopServer;
+  final connectionDetailsKey = GlobalKey<ConnectionDetailsState>();
 
   final downloadedKey = GlobalKey<RecievedFilesState>();
 
-  Future<Directory?> directory() async {
-    const channel = MethodChannel("channel");
-    final String? result = await channel.invokeMethod("getExternalDir");
-    if (result == null) {
-      return null;
-    } else {
-      return Directory(result);
-    }
+  final downloadedFiles = <File>[];
+  final downloadingFiles = <File>[];
+
+  @override
+  void dispose() {
+    stopServer?.call();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-        future: directory(),
-        builder: (context, snapshot) {
-          if (snapshot.hasData && snapshot.data != null) {
-            return DefaultTabController(
-              length: 4,
-              child: Scaffold(
-                appBar: AppBar(
-                  title: const Text("Sharem"),
-                  bottom: const TabBar(
-                    tabs: [
-                      Tab(icon: Icon(Icons.home)),
-                      Tab(icon: Icon(Icons.download)),
-                      Tab(icon: Icon(Icons.folder)),
-                      Tab(icon: Icon(Icons.settings)),
-                    ],
-                  ),
-                ),
-                body: TabBarView(
-                  children: [
-                    HomePage(
-                      dir: snapshot.data!,
-                      downloadsKey: downloadsKey,
-                      downloadedKey: downloadedKey,
-                    ),
-                    RecievingFiles(
-                      key: downloadsKey,
-                    ),
-                    RecievedFiles(
-                      dir: snapshot.data!,
-                      key: downloadedKey,
-                    ),
-                    const SettingsPage()
-                  ],
-                ),
-              ),
-            );
-          } else {
-            return const Scaffold();
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Sharem"),
+      ),
+      body: Column(mainAxisSize: MainAxisSize.min, children: [
+      LocalIpAddress(onReset: onReset),
+      ConnectionDetails(key: connectionDetailsKey),
+      ElevatedButton(
+          onPressed: syncClipBoard,
+          child: const Text('Sync Last Copied Value From Clipboard')),
+      SendFilesButton(sendFiles: sendFiles),
+    ]),
+    );
+  }
+
+  void syncClipBoard() async {
+    final data = await Clipboard.getData('text/plain');
+
+    if (data != null) {
+      sendTextToClipboard(data.text!);
+    }
+  }
+
+  String getUrl() {
+    final state = connectionDetailsKey.currentState!;
+    final ipAddr = state.ipController.text;
+    final port = state.portController.text;
+    return "http://$ipAddr:$port";
+  }
+
+  void onReset([int? port]) async {
+    stopServer?.call();
+    setState(() {
+      stopServer = null;
+    });
+
+    if (port != null) {
+      stopServer = await createHttpServer(port, requestHandler);
+      setState(() {});
+    }
+  }
+
+  void sendText(String text) async {
+    final response = await http.put(Uri.parse(getUrl()),
+        body: text, headers: {'content-type': 'text'});
+    if (response.statusCode != HttpStatus.ok) {
+      showSnackBar(context, 'Failed to Send Data');
+    }
+  }
+
+  void sendTextToClipboard(String text) async {
+    final response = await http.put(Uri.parse(getUrl()),
+        body: text, headers: {'content-type': 'text/clip'});
+    if (response.statusCode != HttpStatus.ok) {
+      showSnackBar(context, 'Failed to Send Data');
+    }
+  }
+
+  void sendFiles(
+      Iterable<File> files, void Function(double) uploadProgress) async {
+    if (files.isEmpty) {
+      throw "no files selected";
+    }
+    final client = dio.Dio();
+    if (files.length == 1) {
+      final response = await client.put(
+        getUrl(),
+        data: files.first.openRead(),
+        options: dio.Options(headers: {
+          'content-length': (await files.first.length()).toString(),
+          'content-type': 'file/${files.first.path.split('/')}',
+        }),
+        onSendProgress: (count, total) => uploadProgress(count / total),
+      );
+      if (response.statusCode == 200) {
+        showSnackBar(context, "Sending File...");
+      }
+    } else {
+      final futures = files.map((file) async {
+        {
+          final response = await client.put(
+            getUrl(),
+            data: file.openRead(),
+            options: dio.Options(headers: {
+              'content-length': await file.length(),
+              'content-type':
+                  'file/${file.path.substring(file.path.lastIndexOf('/') + 1)}',
+            }),
+            onSendProgress: (count, total) => uploadProgress(count / total),
+          );
+          if (response.statusCode == 200) {
+            showSnackBar(context, "Sending Files...");
           }
+        }
+      });
+      await Future.wait(futures);
+    }
+  }
+
+  Future<Response> requestHandler(Request request) async {
+    final contentType = request.headers['content-type'];
+    if (contentType != null) {
+      if (contentType.startsWith('file/')) {
+        final filename = contentType.substring(5);
+        final stream = request.read();
+
+        final filePath = "${widget.directory.path}$filename";
+
+        return Response.ok(null);
+      } else if (contentType.startsWith('clip')) {
+        request.readAsString().then((value) {
+          showSnackBar(context, "Recieved a Clipboard value");
+          Clipboard.setData(ClipboardData(text: value));
         });
+        return Response.ok(null);
+      }
+    }
+    return Response.badRequest();
   }
 }
