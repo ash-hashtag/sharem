@@ -13,19 +13,40 @@ class FileWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(
-        file.path.substring(file.path.lastIndexOf('/') + 1),
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                  child: Text(
+                file.path.substring(file.path.lastIndexOf('/') + 1),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+              )),
+              PopupMenuButton(
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    child: const Text("Delete"),
+                    onTap: () {
+                      onDeletion(file);
+                      file.delete(recursive: true);
+                    },
+                  ),
+                  PopupMenuItem(
+                    child: const Text("Share"),
+                    onTap: () => Share.shareXFiles([XFile(file.path)]),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          FutureBuilder(
+              future: file.length(),
+              builder: (_, s) => Text(s.hasData && s.data != null ? "${s.data} Bytes": "loading...", style: const TextStyle(fontSize: 10),))
+        ],
       ),
-      onTap: openExplorer,
-      subtitle: Text(file.path.substring(file.path.indexOf('Documents'))),
-      trailing: PopupMenuButton(itemBuilder: (context) => [
-        PopupMenuItem(child: const Text("Delete"), onTap: () {
-          onDeletion(file);
-          file.delete(recursive: true);
-        },),
-        PopupMenuItem(child: const Text("Share"), onTap: () => Share.shareXFiles([XFile(file.path)]),),
-      ],),
     );
   }
 

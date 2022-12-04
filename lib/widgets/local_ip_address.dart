@@ -3,8 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 class LocalIpAddress extends StatefulWidget {
-  final Function([int? port]) onReset;
-  const LocalIpAddress({super.key, required this.onReset});
+  const LocalIpAddress({super.key});
 
   @override
   State<LocalIpAddress> createState() => _LocalIpAddressState();
@@ -19,7 +18,7 @@ class _LocalIpAddressState extends State<LocalIpAddress> {
   @override
   void initState() {
     super.initState();
-    refresh();
+    getIpAddress().then((value) => setState(() => ipAddr = value.toString()));
   }
 
   @override
@@ -52,29 +51,8 @@ class _LocalIpAddressState extends State<LocalIpAddress> {
                   const InputDecoration(labelText: 'Port', hintText: '8080'),
             ),
           ),
-          IconButton(
-            onPressed: refresh,
-            icon: const Icon(Icons.refresh),
-          ),
         ],
       ),
     );
-  }
-
-  void refresh() async {
-    final newPort = int.tryParse(controller.text);
-    if (newPort == null) {
-      widget.onReset();
-    } else {
-      if (port != newPort) {
-        widget.onReset(port = newPort);
-      }
-    }
-    final ip = await getIpAddress();
-    if (ip != ipAddr) {
-      setState(() {
-        ipAddr = ip;
-      });
-    }
   }
 }

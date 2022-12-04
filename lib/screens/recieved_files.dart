@@ -11,50 +11,33 @@ class RecievedFiles extends StatefulWidget {
   State<RecievedFiles> createState() => RecievedFilesState();
 }
 
-class RecievedFilesState extends State<RecievedFiles> with AutomaticKeepAliveClientMixin{
-  var files = <File>[];
-
+class RecievedFilesState extends State<RecievedFiles> {
   @override
   void initState() {
     print("init state recievied files 0");
-    super.initState();
-  }
-
-  Future<void> refresh() async {
     widget.dir
         .list()
         .map((e) => File(e.path))
         .toList()
-        .then((value) => setState(() => files = value));
+        .then((value) => setState(() => files.addAll(value)));
+    super.initState();
   }
 
-  void onFile(File file) {
-    setState(() => files.add(file));
-  }
+  final files = <File>[];
 
   @override
   Widget build(BuildContext context) {
-    super.build(context);
-    return Column(
-      children: [
-        Center(
-            child:
-                TextButton(onPressed: refresh, child: const Text("Refresh"))),
-        Expanded(
-          child: ListView.builder(
-            itemCount: files.length,
-            itemBuilder: (context, index) => FileWidget(
-              file: files[index],
-              onDeletion: (file) => setState(
-                () => files.remove(file),
-              ),
-            ),
+    return Scaffold(
+      appBar: AppBar(title: const Text("Documents/sharem"),),
+      body: ListView.builder(
+        itemCount: files.length,
+        itemBuilder: (context, index) => FileWidget(
+          file: files[index],
+          onDeletion: (file) => setState(
+            () => files.remove(file),
           ),
         ),
-      ],
+      ),
     );
   }
-  
-  @override
-  bool get wantKeepAlive => true;
 }

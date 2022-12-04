@@ -1,8 +1,13 @@
 
 class DownloadProgress {
   final String fileName;
-  final int bytesRecieved;
+  int bytesRecieved;
   final int totalBytes;
+  final void Function() cancel;
 
-  const DownloadProgress(this.fileName, this.bytesRecieved, this.totalBytes);
+  DownloadProgress(
+      {required this.fileName,
+      required this.bytesRecieved,
+      required this.totalBytes,
+      required this.cancel});
 }
