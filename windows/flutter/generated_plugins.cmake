@@ -3,7 +3,9 @@
 #
 
 list(APPEND FLUTTER_PLUGIN_LIST
+  awesome_notifications
   network_info_plus
+  share_plus
   url_launcher_windows
 )
 

@@ -1,8 +1,9 @@
 
 import 'dart:io';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:sharem/bin/directories.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SendFilesButton extends StatefulWidget {
 
@@ -28,10 +29,11 @@ class _SendFilesButtonState extends State<SendFilesButton> {
   }
 
     void pickAndSendFiles() async {
-    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
-    if (result != null) {
-      final files = result.paths.map((e) => File(e!));
-      widget.sendFiles(files, (progress) => setState(() => progressText = "$progress%"));
-    }
+      getDownloadedDirectory().then((value) => launchUrl(value.uri));
+    // final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    // if (result != null) {
+    //   final files = result.paths.map((e) => File(e!));
+    //   // widget.sendFiles(files, (progress) => setState(() => progressText = "$progress%"));
+    // }
   }
 }

@@ -48,6 +48,9 @@ dependencies:
   url_launcher: ^6.1.7
   dart_ipify: ^1.1.1
   network_info_plus: ^3.0.1
+  awesome_notifications: ^0.7.4+1
+  mime: ^1.0.3
+  share_plus: ^6.3.0
 
 dev_dependencies:
   flutter_test:
