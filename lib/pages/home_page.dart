@@ -1,8 +1,8 @@
-import 'dart:async';
-import 'dart:io';
-
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:sharem/components/gatherer.dart';
+import 'package:sharem/components/progresses_widget.dart';
+import 'package:sharem/pages/receiver_page.dart';
 import 'package:sharem_cli/sharem_cli.dart';
 import 'package:sharem_cli/unique_name.dart';
 
@@ -15,70 +15,115 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final _tc = TextEditingController();
-  Timer? _broadcastTimer;
-  HttpServer? _server;
-
-  bool get isReceiving => _broadcastTimer != null && _server != null;
 
   @override
   void dispose() {
     super.dispose();
     _tc.dispose();
-    _broadcastTimer?.cancel();
-    _server?.close();
-    // Dispose PeerState
-  }
-
-  void stopReceiving() {
-    setState(() {
-      _broadcastTimer?.cancel();
-      _broadcastTimer = null;
-      _server?.close();
-      _server = null;
-    });
-  }
-
-  Future<void> startReceiving() async {
-    final server = await startHttpServer(0);
-    debugPrint("Started Server at ${server.address.host}:${server.port}");
-    final message =
-        SharemPeerMessage(server.port, generateUniqueName()).toJSON();
-    final timer = Timer.periodic(const Duration(seconds: 1),
-        (_) => sendBroadcast(message, InternetAddress("255.255.255.255")));
-    setState(() {
-      _server = server;
-      _broadcastTimer = timer;
-    });
   }
 
   void onTap(SharemPeer peer) async {
-    if (_tc.text.isNotEmpty) {
-      await peer.sendText(_tc.text);
-      debugPrint("Sent text ${_tc.text} to ${peer.uniqueName}");
+    final text = _tc.text;
+    if (text.isNotEmpty) {
+      await peer.sendText(text);
+      debugPrint("Sent text $text to ${peer.uniqueName}");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Sent $text to ${peer.uniqueName}"),
+        ));
+      }
+    }
+
+    if (filePathsAndLengths.isNotEmpty) {
+      final files = filePathsAndLengths.keys.map(SharemFile.fromPath).toList();
+      peer.sendFiles(generateUniqueName(), files,
+          progressCallback: (fileName, progress) {
+        setState(() {
+          _progresses[fileName] = progress;
+        });
+      });
+    }
+  }
+
+  final Map<String, Progress> _progresses = {};
+  final Map<String, int> filePathsAndLengths = {};
+
+  Future<void> pickFiles() async {
+    filePathsAndLengths.clear();
+    _progresses.clear();
+    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+    if (result != null) {
+      filePathsAndLengths.addEntries(await Future.wait(
+          result.xFiles.map((e) async => MapEntry(e.path, await e.length()))));
+
+      setState(() {});
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final height = MediaQuery.of(context).size.height * 0.3;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text("Sharem"),
       ),
       body: Column(children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            children: [
+              const Text("Text: "),
+              Expanded(
+                child: TextField(
+                  controller: _tc,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        TextButton(onPressed: pickFiles, child: const Text("Pick Files")),
+        SizedBox(
+          height: height,
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: _progresses.isNotEmpty
+                ? Expanded(
+                    child: ProgressesWidget(
+                      progresses: Map.unmodifiable(_progresses),
+                    ),
+                  )
+                : filePathsAndLengths.isNotEmpty
+                    ? Builder(builder: (context) {
+                        final entries = filePathsAndLengths.entries.toList();
+                        return ListView.builder(
+                          itemCount: entries.length,
+                          itemBuilder: (context, index) => ListTile(
+                            title: Text(entries[index].key),
+                            subtitle: Text(formatBytes(entries[index].value)),
+                          ),
+                        );
+                      })
+                    : const SizedBox(),
+          ),
+        ),
+
+        SizedBox(
+          height: height,
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: GathererWidget(onTap: onTap),
+          ),
+        ),
         TextButton(
-          child: Text(isReceiving ? "Stop Receiving" : "Start Receiving"),
-          onPressed: () async {
-            if (isReceiving) {
-              stopReceiving();
-            } else {
-              startReceiving();
-            }
-          },
+          onPressed: () => Navigator.push(context,
+              MaterialPageRoute(builder: (context) => const ReceiverPage())),
+          child: const Text("Receive"),
         ),
-        TextField(
-          controller: _tc,
-        ),
-        Expanded(child: GathererWidget(onTap: onTap)),
+        // const Expanded(
+        //   child: ReceiverWidget(),
+        // ),
       ]),
     );
   }

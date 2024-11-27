@@ -39,6 +39,8 @@ dependencies:
     git: https://github.com/ash-hashtag/sharem_cli
   file_picker: ^8.1.4
   path_provider: ^2.1.5
+  shared_preferences: ^2.3.3
+  external_path: ^2.0.1
 
 dev_dependencies:
   flutter_test:
