@@ -25,6 +25,12 @@ class AcceptDialog extends StatelessWidget {
                   style: const TextStyle(
                       fontWeight: FontWeight.bold, fontSize: 20)),
             ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text("Unique code: '${request.uniqueCode}'",
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 20)),
+            ),
             Expanded(
               child: ListView.builder(
                 itemCount: entries.length,

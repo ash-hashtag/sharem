@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sharem/components/accept_dialog.dart';
 import 'package:sharem/components/progresses_widget.dart';
+import 'package:sharem/services/prefs.dart';
 import 'package:sharem_cli/sharem_cli.dart';
 import 'package:sharem_cli/unique_name.dart';
 
@@ -51,7 +52,7 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
 
   Future<void> loadPreferences() async {
     final prefs = await SharedPreferences.getInstance();
-    _tc.text = prefs.getString("uniqueName") ?? _tc.text;
+    _tc.text = (await getOrSetUniqueName(generateUniqueName()))!;
     receivedTexts = prefs.getStringList("receivedTexts") ?? [];
     setState(() {
       Future.delayed(
@@ -62,7 +63,8 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
     });
   }
 
-  Future<void> addReceivedText(String text) async {
+  Future<void> addReceivedText(
+      String uniqueName, InternetAddress address, String text) async {
     if (receivedTexts.length > maxHistoryReceivedTexts) {
       receivedTexts = receivedTexts
           .sublist(receivedTexts.length - purgeCountHistoryReceivedTexts);
@@ -81,14 +83,17 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
 
     final callbacks = ServerCallbacks(
         onTextCallback: addReceivedText,
-        onFileCallback:
-            (String fileName, int fileLength, Stream<List<int>> stream) async {
+        onFileCallback: (String uniqueName, String uniqueCode,
+            SharemFile sharemFile) async {
           if (pendingRequest == null) {
             debugPrint("No Active Request");
             return;
           }
 
-          if (pendingRequest!.fileNameAndLength[fileName] != fileLength) {
+          final fileName = sharemFile.fileName;
+          final fileLength = await sharemFile.fileLength();
+          if (pendingRequest!.fileNameAndLength[fileName] != fileLength ||
+              pendingRequest!.uniqueCode != uniqueCode) {
             debugPrint(
                 "FIle Lengths mismatch expected: ${pendingRequest!.fileNameAndLength[fileName]} observed: $fileLength");
             return;
@@ -112,14 +117,19 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
 
           final file = File(p.join(directory.path, fileName));
           final sink = file.openWrite();
-          try {
-            await for (final chunk in stream) {
-              sink.add(chunk);
-              setState(() {
-                _progresses[fileName]?.addProgress(chunk.length);
-              });
-            }
+          final stream = sharemFile.asStream(
+              progressCallback: (progress) =>
+                  setState(() => _progresses[fileName] = progress));
 
+          try {
+            // await for (final chunk in stream) {
+            //   sink.add(chunk);
+            //   setState(() {
+            //     _progresses[fileName]?.addProgress(chunk.length);
+            //   });
+            // }
+
+            await sink.addStream(stream);
             await sink.flush();
             await sink.close();
 
@@ -237,28 +247,6 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
           child: ProgressesWidget(
             progresses: Map.unmodifiable(_progresses),
           ),
-          // child: Builder(
-          // builder: (context) {
-          // final entries = _progresses.entries.toList();
-
-          // return ListView.builder(
-          //     itemCount: entries.length,
-          //     itemBuilder: (context, i) {
-          //       final progress = entries[i].value;
-          //       final value =
-          //           progress.bytesTransferred / progress.totalBytes;
-          //       return Padding(
-          //         padding: const EdgeInsets.all(8.0),
-          //         child: Column(children: [
-          //           Text("${entries[i].key} ${progress.toPrettyString()}"),
-          //           LinearProgressIndicator(
-          //             value: value,
-          //           )
-          //         ]),
-          //       );
-          //     });
-          // },
-          // ),
         ),
         Expanded(
           child: ListView.builder(

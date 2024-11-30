@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:sharem/components/gatherer.dart';
 import 'package:sharem/components/progresses_widget.dart';
 import 'package:sharem/pages/receiver_page.dart';
+import 'package:sharem/services/prefs.dart';
 import 'package:sharem_cli/sharem_cli.dart';
 import 'package:sharem_cli/unique_name.dart';
 
@@ -25,7 +26,8 @@ class _HomePageState extends State<HomePage> {
   void onTap(SharemPeer peer) async {
     final text = _tc.text;
     if (text.isNotEmpty) {
-      await peer.sendText(text);
+      await peer.sendText(
+          (await getOrSetUniqueName(generateUniqueName()))!, text);
       debugPrint("Sent text $text to ${peer.uniqueName}");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
