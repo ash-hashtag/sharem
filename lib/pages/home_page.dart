@@ -1,11 +1,6 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:sharem/components/gatherer.dart';
-import 'package:sharem/components/progresses_widget.dart';
-import 'package:sharem/pages/receiver_page.dart';
-import 'package:sharem/services/prefs.dart';
-import 'package:sharem_cli/sharem_cli.dart';
-import 'package:sharem_cli/unique_name.dart';
+import 'package:sharem/components/receiver.dart';
+import 'package:sharem/components/send.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,118 +10,33 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final _tc = TextEditingController();
+  var _selectedIndex = 0;
 
-  @override
-  void dispose() {
-    super.dispose();
-    _tc.dispose();
-  }
-
-  void onTap(SharemPeer peer) async {
-    final text = _tc.text;
-    if (text.isNotEmpty) {
-      await peer.sendText(
-          (await getOrSetUniqueName(generateUniqueName()))!, text);
-      debugPrint("Sent text $text to ${peer.uniqueName}");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text("Sent $text to ${peer.uniqueName}"),
-        ));
-      }
-    }
-
-    if (filePathsAndLengths.isNotEmpty) {
-      final files = filePathsAndLengths.keys.map(SharemFile.fromPath).toList();
-      peer.sendFiles(generateUniqueName(), files,
-          progressCallback: (fileName, progress) {
-        setState(() {
-          _progresses[fileName] = progress;
-        });
-      });
-    }
-  }
-
-  final Map<String, Progress> _progresses = {};
-  final Map<String, int> filePathsAndLengths = {};
-
-  Future<void> pickFiles() async {
-    filePathsAndLengths.clear();
-    _progresses.clear();
-    final result = await FilePicker.platform.pickFiles(allowMultiple: true);
-    if (result != null) {
-      filePathsAndLengths.addEntries(await Future.wait(
-          result.xFiles.map((e) async => MapEntry(e.path, await e.length()))));
-
-      setState(() {});
-    }
-  }
+  final pages = const [
+    ReceiverWidget(),
+    SenderWidget(),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height * 0.3;
+    final navbar = NavigationBar(
+      selectedIndex: _selectedIndex,
+      onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+      destinations: const [
+        NavigationDestination(label: "Receive", icon: Icon(Icons.wifi)),
+        NavigationDestination(label: "Send", icon: Icon(Icons.send)),
+      ],
+    );
 
     return Scaffold(
       appBar: AppBar(
         title: const Text("Sharem"),
       ),
-      body: Column(children: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Row(
-            children: [
-              const Text("Text: "),
-              Expanded(
-                child: TextField(
-                  controller: _tc,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        TextButton(onPressed: pickFiles, child: const Text("Pick Files")),
-        SizedBox(
-          height: height,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: _progresses.isNotEmpty
-                ? Expanded(
-                    child: ProgressesWidget(
-                      progresses: Map.unmodifiable(_progresses),
-                    ),
-                  )
-                : filePathsAndLengths.isNotEmpty
-                    ? Builder(builder: (context) {
-                        final entries = filePathsAndLengths.entries.toList();
-                        return ListView.builder(
-                          itemCount: entries.length,
-                          itemBuilder: (context, index) => ListTile(
-                            title: Text(entries[index].key),
-                            subtitle: Text(formatBytes(entries[index].value)),
-                          ),
-                        );
-                      })
-                    : const SizedBox(),
-          ),
-        ),
-
-        SizedBox(
-          height: height,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: GathererWidget(onTap: onTap),
-          ),
-        ),
-        TextButton(
-          onPressed: () => Navigator.push(context,
-              MaterialPageRoute(builder: (context) => const ReceiverPage())),
-          child: const Text("Receive"),
-        ),
-        // const Expanded(
-        //   child: ReceiverWidget(),
-        // ),
-      ]),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: pages,
+      ),
+      bottomNavigationBar: navbar,
     );
   }
 }

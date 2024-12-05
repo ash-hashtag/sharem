@@ -22,9 +22,8 @@ class _GathererWidgetState extends State<GathererWidget> {
   void initState() {
     super.initState();
 
-    _subscription = listenForPeers().listen((peer) => setState(() {
-          _peers[peer.address] = peer;
-        }));
+    _subscription = listenForPeers()
+        .listen((peer) => setState(() => _peers[peer.address] = peer));
   }
 
   @override

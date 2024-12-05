@@ -38,8 +38,8 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
 
   @override
   void dispose() {
-    super.dispose();
     stopReceiving();
+    super.dispose();
     _tc.dispose();
     _sc.dispose();
   }
@@ -47,7 +47,12 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
   @override
   void initState() {
     super.initState();
-    loadPreferences();
+    init();
+  }
+
+  Future<void> init() async {
+    await loadPreferences();
+    await startReceiving();
   }
 
   Future<void> loadPreferences() async {
@@ -120,15 +125,7 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
           final stream = sharemFile.asStream(
               progressCallback: (progress) =>
                   setState(() => _progresses[fileName] = progress));
-
           try {
-            // await for (final chunk in stream) {
-            //   sink.add(chunk);
-            //   setState(() {
-            //     _progresses[fileName]?.addProgress(chunk.length);
-            //   });
-            // }
-
             await sink.addStream(stream);
             await sink.flush();
             await sink.close();
@@ -197,7 +194,7 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
       _broadcastTimer = timer;
     });
     final prefs = await SharedPreferences.getInstance();
-    prefs.setString("uniqueName", uniqueName);
+    await prefs.setString("uniqueName", uniqueName);
   }
 
   void stopReceiving() {
@@ -223,25 +220,28 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
             }
           },
         ),
-        Row(
-          children: [
-            const Text("Unique Name: "),
-            Expanded(
-              child: TextField(
-                enabled: !isReceiving,
-                controller: _tc,
-                onTap: () {
-                  if (isReceiving) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Stop Receiving to change your name"),
-                      ),
-                    );
-                  }
-                },
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Row(
+            children: [
+              const Text("Unique Name: "),
+              Expanded(
+                child: TextField(
+                  enabled: !isReceiving,
+                  controller: _tc,
+                  onTap: () {
+                    if (isReceiving) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Stop Receiving to change your name"),
+                        ),
+                      );
+                    }
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         Expanded(
           child: ProgressesWidget(
