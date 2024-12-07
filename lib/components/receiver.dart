@@ -186,7 +186,7 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
     final server = await startHttpServer(0, callbacks: callbacks);
     debugPrint("Started Server at ${server.address.host}:${server.port}");
     final uniqueName = _tc.text.isNotEmpty ? _tc.text : generateUniqueName();
-    final message = SharemPeerMessage(server.port, uniqueName).toJSON();
+    final message = SharemPeerMessage(server.port, uniqueName, myHash).toJSON();
     final timer = Timer.periodic(const Duration(seconds: 1),
         (_) => sendBroadcast(message, InternetAddress("255.255.255.255")));
     setState(() {
