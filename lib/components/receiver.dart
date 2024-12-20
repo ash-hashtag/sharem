@@ -42,6 +42,9 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
     super.dispose();
     _tc.dispose();
     _sc.dispose();
+
+    SharedPreferences.getInstance()
+        .then((prefs) => prefs.setStringList("receivedTexts", receivedTexts));
   }
 
   @override
@@ -155,9 +158,21 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
         },
         onFileShareRequest: (SharemFileShareRequest request) async {
           if (pendingRequest != null) {
-            debugPrint(
-                "WARN: Ignoring request from ${request.uniqueName} because already in a transaction with ${pendingRequest!.uniqueName}");
+            final content =
+                "Ignoring request from ${request.uniqueName} because already in a transaction with ${pendingRequest!.uniqueName}";
+            debugPrint("WARN: $content");
             return false;
+          }
+
+          for (final fileName in request.fileNameAndLength.keys) {
+            if (!isValidFileName(fileName)) {
+              final content =
+                  "Rejected a File Share Request because of potential dangerous filename '$fileName'";
+              debugPrint("WARN: $content");
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(content)));
+              return false;
+            }
           }
 
           if (!mounted) {
@@ -221,10 +236,10 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
           },
         ),
         Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.all(20.0),
           child: Row(
             children: [
-              const Text("Unique Name: "),
+              const Text("Unique Name: ", style: TextStyle(color: Colors.red)),
               Expanded(
                 child: TextField(
                   enabled: !isReceiving,
@@ -255,6 +270,10 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
             shrinkWrap: true,
             itemCount: receivedTexts.length,
             itemBuilder: (context, i) => ListTile(
+              trailing: IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: () => setState(() => receivedTexts.removeAt(i)),
+              ),
               title: Text(receivedTexts[i]),
               onTap: () =>
                   Clipboard.setData(ClipboardData(text: receivedTexts[i])),
