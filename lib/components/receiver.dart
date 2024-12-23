@@ -153,7 +153,10 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
             await sink.close();
             await file.delete();
 
-            pendingRequest = null;
+            setState(() {
+              pendingRequest = null;
+              _progresses.clear();
+            });
           }
         },
         onFileShareRequest: (SharemFileShareRequest request) async {
@@ -239,7 +242,7 @@ class _ReceiverWidgetState extends State<ReceiverWidget> {
           padding: const EdgeInsets.all(20.0),
           child: Row(
             children: [
-              const Text("Unique Name: ", style: TextStyle(color: Colors.red)),
+              const Text("Unique Name: "),
               Expanded(
                 child: TextField(
                   enabled: !isReceiving,
