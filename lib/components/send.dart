@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:sharem/components/gatherer.dart';
 import 'package:sharem/components/progresses_widget.dart';
 import 'package:sharem/services/prefs.dart';
@@ -10,10 +13,10 @@ class SenderWidget extends StatefulWidget {
   const SenderWidget({super.key});
 
   @override
-  State<SenderWidget> createState() => _SenderWidgetState();
+  State<SenderWidget> createState() => SenderWidgetState();
 }
 
-class _SenderWidgetState extends State<SenderWidget> {
+class SenderWidgetState extends State<SenderWidget> {
   final _tc = TextEditingController();
 
   @override
@@ -50,15 +53,23 @@ class _SenderWidgetState extends State<SenderWidget> {
   final Map<String, int> filePathsAndLengths = {};
 
   Future<void> pickFiles() async {
-    filePathsAndLengths.clear();
-    _progresses.clear();
     final result = await FilePicker.platform.pickFiles(allowMultiple: true);
     if (result != null) {
-      filePathsAndLengths.addEntries(await Future.wait(
-          result.xFiles.map((e) async => MapEntry(e.path, await e.length()))));
-
-      setState(() {});
+      // filePathsAndLengths.addEntries(await Future.wait(
+      //     result.xFiles.map((e) async => MapEntry(e.path, await e.length()))));
+      await onFilesPicked(
+          result.xFiles.map((xFile) => File(xFile.path)).toList());
     }
+  }
+
+  Future<void> onFilesPicked(List<File> files) async {
+    final entries = await Future.wait(
+        files.map((e) async => MapEntry(e.path, await e.length())));
+    setState(() {
+      _progresses.clear();
+      filePathsAndLengths.clear();
+      filePathsAndLengths.addEntries(entries);
+    });
   }
 
   @override
