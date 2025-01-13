@@ -42,7 +42,12 @@ dependencies:
   shared_preferences: ^2.3.3
   external_path: ^2.0.1
   path: ^1.9.0
-  receive_sharing_intent: ^1.8.1
+
+  
+  receive_sharing_intent:
+    git:
+      url: https://github.com/KasemJaffer/receive_sharing_intent
+      ref: master  
 
 dev_dependencies:
   flutter_test:

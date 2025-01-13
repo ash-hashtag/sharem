@@ -95,7 +95,7 @@ class _SendPageState extends State<SendPage> {
                       return ListView.builder(
                         itemCount: entries.length,
                         itemBuilder: (context, index) => ListTile(
-                          title: Text(entries[index].key),
+                          title: Flexible(child: Text(entries[index].key)),
                           subtitle: Text(formatBytes(entries[index].value)),
                         ),
                       );

@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:sharem/components/gatherer.dart';
 import 'package:sharem/components/progresses_widget.dart';
 import 'package:sharem/services/prefs.dart';
@@ -18,6 +17,7 @@ class SenderWidget extends StatefulWidget {
 
 class SenderWidgetState extends State<SenderWidget> {
   final _tc = TextEditingController();
+  var activeTransferring = false;
 
   @override
   void dispose() {
@@ -40,8 +40,12 @@ class SenderWidgetState extends State<SenderWidget> {
 
     if (filePathsAndLengths.isNotEmpty) {
       final files = filePathsAndLengths.keys.map(SharemFile.fromPath).toList();
+      activeTransferring = true;
       peer.sendFiles(generateUniqueName(), files,
           progressCallback: (fileName, progress) {
+        if (!activeTransferring) {
+          return;
+        }
         setState(() {
           _progresses[fileName] = progress;
         });
@@ -66,9 +70,18 @@ class SenderWidgetState extends State<SenderWidget> {
     final entries = await Future.wait(
         files.map((e) async => MapEntry(e.path, await e.length())));
     setState(() {
+      activeTransferring = false;
       _progresses.clear();
       filePathsAndLengths.clear();
       filePathsAndLengths.addEntries(entries);
+    });
+  }
+
+  void resetTransfer() {
+    setState(() {
+      _progresses.clear();
+      filePathsAndLengths.clear();
+      activeTransferring = false;
     });
   }
 
@@ -89,7 +102,17 @@ class SenderWidgetState extends State<SenderWidget> {
           ],
         ),
       ),
-      TextButton(onPressed: pickFiles, child: const Text("Pick Files")),
+      Row(
+        children: [
+          TextButton(onPressed: pickFiles, child: const Text("Pick Files")),
+          TextButton(
+              onPressed: resetTransfer,
+              child: const Text(
+                "Clear",
+                style: TextStyle(color: Colors.red),
+              )),
+        ],
+      ),
       SizedBox(
         height: height,
         child: Padding(
